@@ -118,8 +118,8 @@ contract SnipeOffer is Base {
         uint256[4][] memory targets = new uint [4][](1);
 
         targets[0][0] = OFFER_ID;
-        targets[0][1] = 100000000;
-        targets[0][2] = 1000000000;
+        targets[0][1] = 10000000;
+        targets[0][2] = 100000000;
         targets[0][3] = 1000000 + 10;
 
         IMangrove(payable(MGV)).snipes(USDT, WMATIC, targets, true);

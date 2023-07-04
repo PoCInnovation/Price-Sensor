@@ -13,7 +13,10 @@ contract OfferMakerTutorial is Direct, ILiquidityProvider {
     ///@notice Constructor
     ///@param mgv The core Mangrove contract
     ///@param deployer The address of the deployer
-    constructor(IMangrove mgv, address deployer) Direct(mgv, new SimpleRouter(), 100_000, deployer) {
+    constructor(
+        IMangrove mgv,
+        address deployer
+    ) Direct(mgv, new SimpleRouter(), 100_000, deployer) {
         router().bind(address(this));
     }
 
@@ -24,14 +27,14 @@ contract OfferMakerTutorial is Direct, ILiquidityProvider {
         uint256 wants,
         uint256 gives,
         uint256 pivotId,
-        uint256 gasreq
+        uint256 gasreq /* the function is payable to allow us to provision an offer*/
     )
         public
-        payable /* the function is payable to allow us to provision an offer*/
+        payable
         onlyAdmin /* only the admin of this contract is allowed to post offers using this contract*/
         returns (uint256 offerId)
     {
-        (offerId,) = _newOffer(
+        (offerId, ) = _newOffer(
             OfferArgs({
                 outbound_tkn: outbound_tkn,
                 inbound_tkn: inbound_tkn,
@@ -73,11 +76,12 @@ contract OfferMakerTutorial is Direct, ILiquidityProvider {
     }
 
     ///@inheritdoc ILiquidityProvider
-    function retractOffer(IERC20 outbound_tkn, IERC20 inbound_tkn, uint256 offerId, bool deprovision)
-        public
-        adminOrCaller(address(MGV))
-        returns (uint256 freeWei)
-    {
+    function retractOffer(
+        IERC20 outbound_tkn,
+        IERC20 inbound_tkn,
+        uint256 offerId,
+        bool deprovision
+    ) public adminOrCaller(address(MGV)) returns (uint256 freeWei) {
         return _retractOffer(outbound_tkn, inbound_tkn, offerId, deprovision);
     }
 
@@ -87,7 +91,10 @@ contract OfferMakerTutorial is Direct, ILiquidityProvider {
 
     ///@notice Post-hook that is invoked when the offer is taken successfully.
     ///@inheritdoc Direct
-    function __posthookSuccess__(MgvLib.SingleOrder calldata, bytes32) internal virtual override returns (bytes32) {
+    function __posthookSuccess__(
+        MgvLib.SingleOrder calldata,
+        bytes32
+    ) internal virtual override returns (bytes32) {
         emit OfferTakenSuccessfully(42);
         return 0;
     }
