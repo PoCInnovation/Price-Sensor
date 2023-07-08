@@ -10,8 +10,6 @@ interface IPriceSensor {
         uint256 id;
     }
 
-    function _callBackFromSensor(SensorData calldata _sensor) external;
-
     function newSensor(
         address outboundToken,
         address inboundToken,

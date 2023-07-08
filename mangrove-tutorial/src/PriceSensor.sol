@@ -7,4 +7,8 @@ abstract contract PriceSensor is IPriceSensor {
     SensorData[] private _sensors;
 
     constructor() {}
+
+    function _callBackFromSensor(
+        SensorData calldata _sensor
+    ) internal virtual {}
 }
