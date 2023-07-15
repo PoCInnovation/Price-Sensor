@@ -1,6 +1,4 @@
-> If you see this section, you've just created a repository using [PoC Innovation's Open-Source project template](https://github.com/PoCInnovation/open-source-project-template). Check the [getting started guide](./.github/getting-started.md).
-
-# [PROJECT'S NAME]
+# Price Sensor
 
 [Project's description]
 
@@ -31,12 +29,12 @@ If you're interested in how the project is organized at a higher level, please c
 ## Our PoC team ❤️
 
 Developers
-| [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy) | [<img src="https://github.com/MrZalTy.png?size=85" width=85><br><sub>[Developer's name]</sub>](https://github.com/MrZalTy)
-| :---: | :---: | :---: |
+| [<img src="https://github.com/LeTamanoir.png" width=85><br><sub>Martin Saldinger</sub>](https://github.com/LeTamanoir) | [<img src="https://github.com/EdenComp.png" width=85><br><sub>Florian Lauch</sub>](https://github.com/EdenComp) | [<img src="https://github.com/Nfire2103.png" width=85><br><sub>Nathan Flattin</sub>](https://github.com/Nfire2103) |
+| :--------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
 
 Manager
-| [<img src="https://github.com/adrienfort.png?size=85" width=85><br><sub>[Manager's name]</sub>](https://github.com/adrienfort)
-| :---: |
+| [<img src="https://github.com/Doozers.png" width=85><br><sub>Ismaël Fall</sub>](https://github.com/Doozers) |
+| :---------------------------------------------------------------------------------------------------------: |
 
 <h2 align=center>
 Organization
