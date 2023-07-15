@@ -1,0 +1,10 @@
+[profile.default]
+src = 'src'
+out = 'out'
+libs = ["node_modules", "lib"]
+remappings = [
+    '@mangrovedao/=node_modules/@mangrovedao/',
+    'ds-test/=node_modules/@mangrovedao/mangrove-core/lib/forge-std/lib/ds-test/',
+]
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
