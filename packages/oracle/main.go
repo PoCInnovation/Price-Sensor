@@ -1,12 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"oracle/utils"
+	"oracle/watcher"
 )
 
 func main() {
 
-	fmt.Println(utils.Config.FactoryAddress)
+	config := utils.NewConfig()
+
+	watcher := watcher.NewWatcher(config)
+
+	watcher.Start()
 
 }
