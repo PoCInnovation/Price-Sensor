@@ -79,7 +79,7 @@ abstract contract PriceSensor {
         // TODO:
         // if snipe detected do nothing
         // else call __callbackOnStopLoss__
-        // __callbackOnStopLoss__(_sensor);
+        // __callbackOnStopLoss__();
     }
 
     /// @notice Callback function called when a stop loss is reached and no snipe is detected

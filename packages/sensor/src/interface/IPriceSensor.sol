@@ -11,7 +11,7 @@ interface IPriceSensor {
         address outboundToken,
         address inboundToken,
         uint256 price
-    ) external returns (uint256 id);
+    ) external returns (uint256 idx);
 
     /// @notice Removes a sensor and its associated bait offer
     /// @param idx the id of the sensor to remove
