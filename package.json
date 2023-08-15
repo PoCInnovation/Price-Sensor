@@ -1,0 +1,24 @@
+{
+  "name": "price-sensor",
+  "version": "1.0.0",
+  "description": "[Project's description]",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PoCInnovation/Price-Sensor.git"
+  },
+  "keywords": [],
+  "author": "Martin Saldinger, Nathan Flattin, Florian Lauch",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PoCInnovation/Price-Sensor/issues"
+  },
+  "homepage": "https://github.com/PoCInnovation/Price-Sensor#readme",
+  "dependencies": {
+    "@mangrovedao/mangrove-core": "^1.5.7-0",
+    "@uniswap/v3-core": "^1.0.1"
+  }
+}
