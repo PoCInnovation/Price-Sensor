@@ -6,111 +6,141 @@ import {IMangrove} from "mgv_src/IMangrove.sol";
 import {MgvStructs} from "mgv_src/MgvLib.sol";
 import {IERC20} from "mgv_src/IERC20.sol";
 import {PriceSensor} from "../src/abstract/PriceSensor.sol";
+import {ExampleImplementation} from "../src/example/ExampleImplementation.sol";
 
-contract PriceSensorPublic is PriceSensor {
-    constructor(IMangrove mgv) PriceSensor(mgv) {}
+address constant MGV = 0xd1805f6Fe12aFF69D4264aE3e49ef320895e2D8b;
+address constant USDT = 0xe8099699aa4A79d89dBD20A63C50b7d35ED3CD9e;
+address constant WMATIC = 0x193163EeFfc795F9d573b171aB12cCDdE10392e8;
 
-    function newSensor(
-        address[] calldata uniswapPools,
-        address outboundToken,
-        address inboundToken,
-        uint256 price
-    ) public payable returns (uint256 id) {
-        return
-            _newSensor(
-                uniswapPools,
-                outboundToken,
-                inboundToken,
-                price,
-                30_000,
-                0
-            );
-    }
+address constant TOKENS_ADMIN = 0x47897EE61498D02B18794601Ed3A71896A1Ff894;
 
-    function removeSensor(
-        address outboundToken,
-        address inboundToken,
-        uint256 id
-    ) public returns (uint256 provision) {
-        return _removeSensor(outboundToken, inboundToken, id);
-    }
+interface ITestToken {
+    function setMintLimit(uint256 amount) external;
+
+    function mintTo(address to, uint256 amount) external;
+
+    function approve(address to, uint256 amount) external;
 }
 
-IMangrove constant MGV = IMangrove(
-    payable(address(0xd1805f6Fe12aFF69D4264aE3e49ef320895e2D8b))
-);
-
 contract TestPriceSensor is Test {
-    PriceSensorPublic public priceSensor;
+    ExampleImplementation public priceSensor;
     address public account;
-
-    address constant USDT = 0xe8099699aa4A79d89dBD20A63C50b7d35ED3CD9e;
-    address constant WMATIC = 0x193163EeFfc795F9d573b171aB12cCDdE10392e8;
+    IMangrove public mgv;
 
     function setUp() public {
-        priceSensor = new PriceSensorPublic(MGV);
+        priceSensor = new ExampleImplementation(MGV, address(this));
         account = vm.envAddress("ACCOUNT");
+        mgv = IMangrove(payable(MGV));
+
+        setLimit();
     }
 
-    function mintToken(address token, uint256 amount) private {
-        (bool send, ) = token.call(
-            abi.encodeWithSignature("mint(uint256)", amount)
-        );
-        require(send, "minting failed");
+    function setLimit() public {
+        vm.prank(TOKENS_ADMIN);
+        ITestToken(USDT).setMintLimit(100 ether);
     }
 
-    function test_newSensor() public {
-        vm.startPrank(account);
+    function setupTokens() public {
+        address self = address(this);
+        uint256 mintAmount = 1 * 1e18;
 
-        uint256 mintAmount = 10000000;
+        // see https://mumbai.polygonscan.com/address/0xe8099699aa4A79d89dBD20A63C50b7d35ED3CD9e
+        // contract creator is also an admin
+        vm.startPrank(TOKENS_ADMIN);
+        ITestToken(USDT).mintTo(self, mintAmount);
+        ITestToken(WMATIC).mintTo(self, mintAmount);
+        vm.stopPrank();
 
-        mintToken(USDT, mintAmount);
-        mintToken(WMATIC, mintAmount);
+        address router = address(priceSensor.router());
 
-        address[] memory uniswapPools = new address[](2);
-        uniswapPools[0] = address(1);
-        uniswapPools[1] = address(2);
+        ITestToken(USDT).approve(router, mintAmount);
+        ITestToken(WMATIC).approve(router, mintAmount);
 
-        console.log("test: ", 0.68 ether / (1 ether / 0.0001 ether));
+        ITestToken(USDT).approve(MGV, mintAmount);
+        ITestToken(WMATIC).approve(MGV, mintAmount);
 
-        uint256 offerId = priceSensor.newSensor{value: 0.001 ether}(
+        ITestToken(USDT).approve(address(priceSensor), mintAmount);
+        ITestToken(WMATIC).approve(address(priceSensor), mintAmount);
+    }
+
+    // function test_newSensor() public {
+    //     address[] memory uniswapPools = new address[](1);
+    //     uniswapPools[0] = address(0);
+
+    //     uint256 offerId = priceSensor.newSensor{value: 0.001 * 1e18}(
+    //         uniswapPools,
+    //         USDT,
+    //         WMATIC,
+    //         0.68 * 1e18
+    //     );
+
+    //     assert(offerId != 0);
+    // }
+
+    // function test_removePriceSensor() public {
+    //     address[] memory uniswapPools = new address[](1);
+    //     uniswapPools[0] = address(0);
+
+    //     uint256 offerId = priceSensor.newSensor{value: 0.001 * 1e18}(
+    //         uniswapPools,
+    //         USDT,
+    //         WMATIC,
+    //         0.68 * 1e18
+    //     );
+
+    //     uint256 provision = priceSensor.removeSensor(USDT, WMATIC, offerId);
+
+    //     assert(provision > 0);
+    // }
+
+    function test_snipeSensor() public {
+        address[] memory uniswapPools = new address[](1);
+        uniswapPools[0] = address(0);
+
+        // for 0.68 token in we get 1 token out
+        uint256 price = 0.68 ether;
+
+        uint256 offerId = priceSensor.newSensor{value: 0.001 * 1e18}(
             uniswapPools,
             USDT,
             WMATIC,
-            0.68 ether
+            price
         );
 
-        (, MgvStructs.LocalUnpacked memory local) = IMangrove(MGV).configInfo(
-            USDT,
-            WMATIC
-        );
+        setupTokens();
 
-        console.log("active: ", local.active);
-        console.log("fee: ", local.fee);
-        console.log("density: ", local.density);
-        console.log("offer_gasbase: ", local.offer_gasbase);
-        console.log("lock: ", local.lock);
-        console.log("best: ", local.best);
-        console.log("last: ", local.last);
+        console.log("offerId: %s", offerId);
+        console.log("priceSensor: %s", address(priceSensor));
+
+        console.log(address(this));
+        console.log(IERC20(USDT).balanceOf(address(this)));
+        console.log(IERC20(WMATIC).balanceOf(address(this)));
+        console.log(
+            IERC20(USDT).allowance(address(this), address(priceSensor))
+        );
+        console.log(IERC20(WMATIC).allowance(address(this), MGV));
+
+        uint256[4][] memory targets = new uint[4][](1);
+        /* offerId          */ targets[0][0] = offerId;
+        /* takerWants       */ targets[0][1] = 1 * 1e10;
+        /* takerGives       */ targets[0][2] = 0.68 * 1e10;
+        /* gasreq_permitted */ targets[0][3] = 30_000;
+
+        console.log(address(this).balance);
+        console.log(address(priceSensor).balance);
+        console.log(address(MGV).balance);
 
         (
-            MgvStructs.OfferUnpacked memory offer,
-            MgvStructs.OfferDetailUnpacked memory offerDetail
-        ) = IMangrove(MGV).offerInfo(WMATIC, USDT, offerId);
-
-        console.log("account: ", account);
-        console.log("priceSensor: ", address(priceSensor));
-
-        console.log("offer.prev: ", offer.prev);
-        console.log("offer.next: ", offer.next);
-        console.log("offer.wants: ", offer.wants);
-        console.log("offer.gives: ", offer.gives);
-
-        console.log("offerDetail.maker: ", offerDetail.maker);
-        console.log("offerDetail.gasreq: ", offerDetail.gasreq);
-        console.log("offerDetail.offer_gasbase: ", offerDetail.offer_gasbase);
-        console.log("offerDetail.gaspric: ", offerDetail.gasprice);
-
-        vm.stopPrank();
+            uint successes,
+            uint takerGot,
+            uint takerGave,
+            uint bounty,
+            uint fee
+        ) = mgv.snipes(USDT, WMATIC, targets, true);
+        console.log("successes: %s", successes);
+        console.log("takerGot: %s", takerGot);
+        console.log("takerGave: %s", takerGave);
+        console.log("bounty: %s", bounty);
+        console.log("fee: %s", fee);
     }
 }

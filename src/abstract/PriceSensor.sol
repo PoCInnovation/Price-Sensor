@@ -2,7 +2,7 @@
 pragma solidity ^0.8.10;
 
 import {IMangrove} from "mgv_src/IMangrove.sol";
-import {Direct} from "mgv_src/strategies/offer_maker/abstract/Direct.sol";
+import {IUniswapV3Pool} from "uniswap/interfaces/IUniswapV3Pool.sol";
 import {MgvLib, MgvStructs} from "mgv_src/MgvLib.sol";
 import {SetLib, Set} from "../library/Set.sol";
 
@@ -30,21 +30,18 @@ abstract contract PriceSensor {
     error ZeroAddressNotAllowed();
     error ZeroPriceNotAllowed();
 
-    // / @dev array of mangrove bait offers
-    // uint256[] private _baitMangroveOffers;
     using SetLib for Set;
 
-    /// @dev mapping of watched uniwap pools for outbound and inbound token
+    /// mapping of watched uniwap pools for outbound and inbound token
     mapping(address outboundToken => mapping(address inboundToken => Set))
         private _uniswapPools;
 
-    /// @dev The mangrove contract
+    /// The mangrove contract
     IMangrove private immutable _MGV;
 
-    /// Creates a new PriceSensor
     /// @param mgv_ The mangrove contract
-    constructor(IMangrove mgv_) {
-        _MGV = mgv_;
+    constructor(address mgv_) {
+        _MGV = IMangrove(payable(mgv_));
     }
 
     /// @notice Creates a new sensor
@@ -91,7 +88,7 @@ abstract contract PriceSensor {
             (outboundToken, inboundToken) = (inboundToken, outboundToken);
         }
 
-        // add the uniswap pools to the mapping
+        /// add the uniswap pools to the mapping
         for (uint256 i = 0; i < uniswapPools.length; ) {
             _uniswapPools[outboundToken][inboundToken].add(uniswapPools[i]);
 
@@ -112,24 +109,52 @@ abstract contract PriceSensor {
         address inboundToken,
         uint256 id
     ) internal returns (uint256 provision) {
-        /// @dev retract Mangrove offer
+        /// retract Mangrove offer
         provision = _MGV.retractOffer(outboundToken, inboundToken, id, true);
     }
 
     /// @notice callback function used to check if an offer was taken without sniping and if the stop loss was reached
     /// @dev make sure to call this function when an offer is taken using for example `__posthookSuccess__`, check the example folder for an example implementation
     /// @param order the order that was taken
-    /// @param makerData the maker data of the order
     function __callbackOnOfferTaken__(
-        MgvLib.SingleOrder calldata order,
-        bytes32 makerData
-    ) internal returns (bytes32) {
-        // if ()
-        // if (order.)
-        // TODO:
-        // if snipe detected do nothing
-        // else call __callbackOnStopLoss__
-        // __callbackOnStopLoss__();
+        MgvLib.SingleOrder calldata order
+    ) internal {
+        /// reconstruct the price
+        uint256 price = order.wants * (1 ether / order.gives);
+
+        address outboundToken = order.outbound_tkn;
+        address inboundToken = order.inbound_tkn;
+
+        if (outboundToken > inboundToken) {
+            (outboundToken, inboundToken) = (inboundToken, outboundToken);
+        }
+
+        Set storage uniswapPools = _uniswapPools[outboundToken][inboundToken];
+
+        uint256 average = 0;
+
+        for (uint256 i = 0; i < uniswapPools.values.length; ) {
+            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(
+                uniswapPools.values[i]
+            ).slot0();
+
+            uint256 poolPrice = (sqrtPriceX96 / 2 ** 96) ** 2;
+
+            unchecked {
+                average += poolPrice;
+            }
+
+            unchecked {
+                i++;
+            }
+        }
+
+        average /= uniswapPools.values.length;
+
+        // if the average price is lower than the price of the sensor it means that the stop loss was reached
+        if (average > price) {
+            __callbackOnStopLoss__(order);
+        }
     }
 
     /// @notice Callback function called when a stop loss is reached and no snipe is detected

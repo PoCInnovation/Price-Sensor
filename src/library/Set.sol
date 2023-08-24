@@ -8,9 +8,9 @@ struct Set {
 
 library SetLib {
     function add(Set storage set, address value) public {
-        if (set.has[value]) return;
-
-        set.values.push(value);
-        set.has[value] = true;
+        if (set.has[value] == false) {
+            set.values.push(value);
+            set.has[value] = true;
+        }
     }
 }
