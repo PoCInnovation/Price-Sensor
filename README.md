@@ -1,24 +1,36 @@
 # Price Sensor
 
-[Project's description]
-
-## How does it work?
-
-[Explain how this project is working]
+Price sensor is an implementation of a price sensor for the Mangrove protocol.
+Its abstract nature allows it to be easily integrated into various types of smart offers.
 
 ## Getting Started
 
 ### Installation
 
-[Explain how to install all of the project's dependencies]
+Clone the repository:
 
-### Quickstart
+```bash
+git clone git@github.com:PoCInnovation/Price-Sensor.git
+```
 
-[Explain how to run this project]
+Install dependencies:
+
+```bash
+npm install
+```
+
+For testing: Create a `.env` file at the root of the project and fill it with the variables found in `.env.example`.
 
 ### Usage
 
-[Explain how to use this project]
+Implement the `abstract PriceSensor` class in your own project.
+Refer to `./src/example/ExampleImplementation.sol` for an example.
+
+```solidity
+contract ExampleImplementation is PriceSensor {
+    // [...]
+}
+```
 
 ## Get involved
 
