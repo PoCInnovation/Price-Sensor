@@ -6,11 +6,7 @@ import {IUniswapV3Pool} from "uniswap/interfaces/IUniswapV3Pool.sol";
 import {MgvLib, MgvStructs} from "mgv_src/MgvLib.sol";
 import {SetLib, Set} from "../library/Set.sol";
 
-/// @title PriceSensor
-/// @author Martin Saldinger, Florian Lauch, Nathan Flattin
-/// @dev This contract is used to create sensors that trigger a stop loss when a certain price is reached
-/// @dev You need to inherit from this contract and implement the `__callbackOnStopLoss__` function
-abstract contract PriceSensor {
+interface IPriceSensor {
     /// @param baitOfferId The index of the newly created sensor
     event NewSensor(uint256 indexed baitOfferId);
 
@@ -27,9 +23,18 @@ abstract contract PriceSensor {
         uint256 price
     );
 
+    /// @notice Error emitted when the address is 0
     error ZeroAddressNotAllowed();
-    error ZeroPriceNotAllowed();
 
+    /// @notice Error emitted when the price is 0
+    error ZeroPriceNotAllowed();
+}
+
+/// @title PriceSensor
+/// @author Martin Saldinger, Florian Lauch, Nathan Flattin
+/// @dev This contract is used to create sensors that trigger a stop loss when a certain price is reached
+/// @dev You need to inherit from this contract and implement the `__callbackOnStopLoss__` function
+abstract contract PriceSensor is IPriceSensor {
     using SetLib for Set;
 
     /// mapping of watched uniwap pools for outbound and inbound token
@@ -71,6 +76,7 @@ abstract contract PriceSensor {
             inboundToken
         );
 
+        /// bypass mangrove check of minimum gives
         uint256 gives = (gasreq + local.offer_gasbase) * local.density;
         uint256 wants = price / (1 ether / gives);
 
@@ -84,6 +90,7 @@ abstract contract PriceSensor {
             pivotId
         );
 
+        // keep the uniswap pools sorted
         if (outboundToken > inboundToken) {
             (outboundToken, inboundToken) = (inboundToken, outboundToken);
         }
@@ -93,7 +100,7 @@ abstract contract PriceSensor {
             _uniswapPools[outboundToken][inboundToken].add(uniswapPools[i]);
 
             unchecked {
-                i++;
+                ++i;
             }
         }
 
@@ -131,6 +138,10 @@ abstract contract PriceSensor {
 
         Set storage uniswapPools = _uniswapPools[outboundToken][inboundToken];
 
+        if (uniswapPools.values.length == 0) {
+            return;
+        }
+
         uint256 average = 0;
 
         for (uint256 i = 0; i < uniswapPools.values.length; ) {
@@ -138,14 +149,13 @@ abstract contract PriceSensor {
                 uniswapPools.values[i]
             ).slot0();
 
+            /// compute the pool price
+            /// https://blog.uniswap.org/uniswap-v3-math-primer
             uint256 poolPrice = (sqrtPriceX96 / 2 ** 96) ** 2;
 
             unchecked {
                 average += poolPrice;
-            }
-
-            unchecked {
-                i++;
+                ++i;
             }
         }
 

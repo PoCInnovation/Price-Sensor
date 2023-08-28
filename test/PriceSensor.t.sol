@@ -8,59 +8,147 @@ import {IERC20} from "mgv_src/IERC20.sol";
 import {PriceSensor} from "../src/abstract/PriceSensor.sol";
 import {ExampleImplementation} from "../src/example/ExampleImplementation.sol";
 
-address constant MGV = 0xd1805f6Fe12aFF69D4264aE3e49ef320895e2D8b;
-address constant USDT = 0xe8099699aa4A79d89dBD20A63C50b7d35ED3CD9e;
-address constant WMATIC = 0x193163EeFfc795F9d573b171aB12cCDdE10392e8;
+import {AbstractMangrove} from "mgv_src/AbstractMangrove.sol";
+import {Mangrove} from "mgv_src/Mangrove.sol";
+import {TransferLib} from "mgv_src/strategies/utils/TransferLib.sol";
+import {TestToken} from "mgv_test/lib/tokens/TestToken.sol";
 
-address constant TOKENS_ADMIN = 0x47897EE61498D02B18794601Ed3A71896A1Ff894;
+contract MangroveTestHelper {
+    struct TokenOptions {
+        string name;
+        string symbol;
+        uint8 decimals;
+    }
 
-interface ITestToken {
-    function setMintLimit(uint256 amount) external;
-
-    function mintTo(address to, uint256 amount) external;
-
-    function approve(address to, uint256 amount) external;
+    struct MangroveTestOptions {
+        bool invertedMangrove;
+        TokenOptions base;
+        TokenOptions quote;
+        uint defaultFee;
+        uint gasprice;
+        uint gasbase;
+        uint gasmax;
+        uint density;
+    }
 }
 
-contract TestPriceSensor is Test {
+contract TestTokenHelper is TestToken {
+    constructor(
+        address admin,
+        string memory name,
+        string memory symbol,
+        uint8 _decimals
+    ) TestToken(admin, name, symbol, _decimals) {}
+
+    function mint2(uint amount) external {
+        _mint(msg.sender, amount);
+    }
+}
+
+contract TestPriceSensor is Test, MangroveTestHelper {
     ExampleImplementation public priceSensor;
     address public account;
-    IMangrove public mgv;
+    AbstractMangrove internal mgv;
 
-    function setUp() public {
-        priceSensor = new ExampleImplementation(MGV, address(this));
+    MangroveTestOptions internal options =
+        MangroveTestOptions({
+            invertedMangrove: false,
+            base: TokenOptions({
+                name: "Base Token",
+                symbol: "BASE",
+                decimals: 18
+            }),
+            quote: TokenOptions({
+                name: "Quote Token",
+                symbol: "QUOTE",
+                decimals: 18
+            }),
+            defaultFee: 0,
+            gasprice: 40,
+            gasbase: 50_000,
+            density: 10,
+            gasmax: 2_000_000
+        });
+
+    TestTokenHelper internal base;
+    TestTokenHelper internal quote;
+
+    function setUp() public virtual {
         account = vm.envAddress("ACCOUNT");
-        mgv = IMangrove(payable(MGV));
 
-        setLimit();
-    }
+        // tokens
+        base = new TestTokenHelper(
+            address(this),
+            options.base.name,
+            options.base.symbol,
+            options.base.decimals
+        );
+        vm.label(address(mgv), "BASE_TOKEN");
+        quote = new TestTokenHelper(
+            address(this),
+            options.quote.name,
+            options.quote.symbol,
+            options.quote.decimals
+        );
+        vm.label(address(mgv), "QUOTE_TOKEN");
 
-    function setLimit() public {
-        vm.prank(TOKENS_ADMIN);
-        ITestToken(USDT).setMintLimit(100 ether);
-    }
+        // mangrove deploy
+        mgv = new Mangrove({
+            governance: address(this),
+            gasprice: options.gasprice,
+            gasmax: options.gasmax
+        });
+        vm.label(address(mgv), "MGV");
 
-    function setupTokens() public {
-        address self = address(this);
-        uint256 mintAmount = 1 * 1e18;
+        // reader = new MgvReader($(mgv));
 
-        // see https://mumbai.polygonscan.com/address/0xe8099699aa4A79d89dBD20A63C50b7d35ED3CD9e
-        // contract creator is also an admin
-        vm.startPrank(TOKENS_ADMIN);
-        ITestToken(USDT).mintTo(self, mintAmount);
-        ITestToken(WMATIC).mintTo(self, mintAmount);
-        vm.stopPrank();
+        // below are necessary operations because testRunner acts as a taker/maker in some core protocol tests
+        // TODO this should be done somewhere else
+        //provision mangrove so that testRunner can post offers
+        mgv.fund{value: 10 ether}();
+        // approve mangrove so that testRunner can take offers on Mangrove
+        TransferLib.approveToken(base, address(mgv), type(uint).max);
+        TransferLib.approveToken(quote, address(mgv), type(uint).max);
 
+        mgv.activate(
+            address(base),
+            address(quote),
+            options.defaultFee,
+            options.density,
+            options.gasbase
+        );
+        mgv.activate(
+            address(quote),
+            address(base),
+            options.defaultFee,
+            options.density,
+            options.gasbase
+        );
+        // logging
+        vm.label(address(base), IERC20(base).symbol());
+        vm.label(address(quote), IERC20(quote).symbol());
+
+        priceSensor = new ExampleImplementation(address(mgv), address(this));
+
+        uint256 mintAmount = 100 * 1e18;
         address router = address(priceSensor.router());
 
-        ITestToken(USDT).approve(router, mintAmount);
-        ITestToken(WMATIC).approve(router, mintAmount);
+        base.mint2(mintAmount);
+        quote.mint2(mintAmount);
 
-        ITestToken(USDT).approve(MGV, mintAmount);
-        ITestToken(WMATIC).approve(MGV, mintAmount);
+        base.approve(router, mintAmount);
+        quote.approve(router, mintAmount);
 
-        ITestToken(USDT).approve(address(priceSensor), mintAmount);
-        ITestToken(WMATIC).approve(address(priceSensor), mintAmount);
+        base.approve(address(mgv), mintAmount);
+        quote.approve(address(mgv), mintAmount);
+
+        base.approve(address(priceSensor), mintAmount);
+        quote.approve(address(priceSensor), mintAmount);
+
+        vm.prank(address(priceSensor));
+        base.approve(address(mgv), mintAmount);
+
+        console.log(quote.allowance(address(this), address(priceSensor)));
     }
 
     // function test_newSensor() public {
@@ -94,31 +182,31 @@ contract TestPriceSensor is Test {
     // }
 
     function test_snipeSensor() public {
-        address[] memory uniswapPools = new address[](1);
-        uniswapPools[0] = address(0);
+        address[] memory uniswapPools = new address[](0);
+        // uniswapPools[0] = address(0);
+
+        vm.pauseGasMetering();
 
         // for 0.68 token in we get 1 token out
         uint256 price = 0.68 ether;
 
-        uint256 offerId = priceSensor.newSensor{value: 0.001 * 1e18}(
+        uint256 offerId = priceSensor.newSensor{value: 0.01 ether}(
             uniswapPools,
-            USDT,
-            WMATIC,
+            address(base),
+            address(quote),
             price
         );
-
-        setupTokens();
 
         console.log("offerId: %s", offerId);
         console.log("priceSensor: %s", address(priceSensor));
 
         console.log(address(this));
-        console.log(IERC20(USDT).balanceOf(address(this)));
-        console.log(IERC20(WMATIC).balanceOf(address(this)));
+        console.log(IERC20(base).balanceOf(address(this)));
+        console.log(IERC20(quote).balanceOf(address(this)));
         console.log(
-            IERC20(USDT).allowance(address(this), address(priceSensor))
+            IERC20(base).allowance(address(this), address(priceSensor))
         );
-        console.log(IERC20(WMATIC).allowance(address(this), MGV));
+        console.log(IERC20(quote).allowance(address(this), address(mgv)));
 
         uint256[4][] memory targets = new uint[4][](1);
         /* offerId          */ targets[0][0] = offerId;
@@ -128,7 +216,7 @@ contract TestPriceSensor is Test {
 
         console.log(address(this).balance);
         console.log(address(priceSensor).balance);
-        console.log(address(MGV).balance);
+        console.log(address(mgv).balance);
 
         (
             uint successes,
@@ -136,7 +224,7 @@ contract TestPriceSensor is Test {
             uint takerGave,
             uint bounty,
             uint fee
-        ) = mgv.snipes(USDT, WMATIC, targets, true);
+        ) = mgv.snipes(address(base), address(quote), targets, true);
         console.log("successes: %s", successes);
         console.log("takerGot: %s", takerGot);
         console.log("takerGave: %s", takerGave);
