@@ -127,7 +127,7 @@ abstract contract PriceSensor is IPriceSensor {
         MgvLib.SingleOrder calldata order
     ) internal {
         /// reconstruct the price
-        uint256 price = order.wants * (1 ether / order.gives);
+        uint256 price = order.offer.wants() * (1 ether / order.offer.gives());
 
         address outboundToken = order.outbound_tkn;
         address inboundToken = order.inbound_tkn;
@@ -138,6 +138,8 @@ abstract contract PriceSensor is IPriceSensor {
 
         Set storage uniswapPools = _uniswapPools[outboundToken][inboundToken];
 
+        // don't do anything if there are no uniswap pools
+        // for safety sensors without uniswap pools will never be reposted
         if (uniswapPools.values.length == 0) {
             return;
         }
@@ -164,6 +166,18 @@ abstract contract PriceSensor is IPriceSensor {
         // if the average price is lower than the price of the sensor it means that the stop loss was reached
         if (average > price) {
             __callbackOnStopLoss__(order);
+        } else {
+            // else we repost the offer
+            _MGV.updateOffer(
+                order.outbound_tkn,
+                order.inbound_tkn,
+                order.wants,
+                order.gives,
+                order.offerDetail.gasreq(),
+                order.offerDetail.gasprice(),
+                order.offer.next(),
+                order.offerId
+            );
         }
     }
 
