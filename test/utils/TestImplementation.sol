@@ -7,9 +7,9 @@ import {Direct} from "mgv_src/strategies/offer_maker/abstract/Direct.sol";
 import {SimpleRouter} from "mgv_src/strategies/routers/SimpleRouter.sol";
 import {IERC20} from "mgv_src/IERC20.sol";
 
-import {AbstractPriceSensor} from "../AbstractPriceSensor.sol";
+import {AbstractPriceSensor} from "../../src/AbstractPriceSensor.sol";
 
-contract ExampleImplementation is AbstractPriceSensor, Direct {
+contract TestImplementation is AbstractPriceSensor, Direct {
     event TestEvent(uint256 indexed offerId);
 
     /// The outbound token of the sensor

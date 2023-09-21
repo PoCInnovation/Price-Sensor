@@ -8,7 +8,7 @@ import {IERC20} from "mgv_src/IERC20.sol";
 import {IPriceSensor} from "./IPriceSensor.sol";
 
 /// @title PriceSensor
-/// @author Martin Saldinger, Florian Lauch, Nathan Flattin
+/// @author Martin Saldinger, Nathan Flattin
 /// @dev This contract is used to create sensors that trigger a stop loss when a certain price is reached
 /// @dev You need to inherit from this contract and implement the `__callbackOnStopLoss__` function
 abstract contract AbstractPriceSensor is IPriceSensor {
