@@ -1,0 +1,16 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+dependencies:
+  '@mangrovedao/mangrove-core':
+    specifier: ^1.5.10
+    version: 1.5.10
+
+packages:
+
+  /@mangrovedao/mangrove-core@1.5.10:
+    resolution: {integrity: sha512-R++CKUo91vOdM32/b3evric5yswz/gPkpbePMDMEoqQnR2A3HRSOW8KHw0ljIoBvnBUwy0NH36d4pBy+h8WQtA==}
+    dev: false

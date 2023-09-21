@@ -18,6 +18,6 @@
   },
   "homepage": "https://github.com/PoCInnovation/Price-Sensor#readme",
   "dependencies": {
-    "@mangrovedao/mangrove-core": "^1.5.7-0"
+    "@mangrovedao/mangrove-core": "^1.5.10"
   }
 }

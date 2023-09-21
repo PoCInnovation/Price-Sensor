@@ -7,44 +7,58 @@ import {Direct} from "mgv_src/strategies/offer_maker/abstract/Direct.sol";
 import {SimpleRouter} from "mgv_src/strategies/routers/SimpleRouter.sol";
 
 import {PriceSensor} from "../abstract/PriceSensor.sol";
-import {IPriceSensor} from "../interface/IPriceSensor.sol";
 
-contract ExampleImplementation is PriceSensor, IPriceSensor, Direct {
-    event TestEvent(uint256 price);
+contract ExampleImplementation is PriceSensor, Direct {
+    event TestEvent(uint256 indexed offerId);
 
     constructor(
-        IMangrove mgv,
+        address mgv,
         address deployer
-    ) Direct(mgv, new SimpleRouter(), 100_000, deployer) PriceSensor(mgv) {
+    )
+        Direct(IMangrove(payable(mgv)), new SimpleRouter(), 100_000, deployer)
+        PriceSensor(mgv)
+    {
         router().bind(address(this));
     }
 
     function newSensor(
+        address[] calldata uniswapPools,
         address outboundToken,
         address inboundToken,
         uint256 price
-    ) external onlyAdmin returns (uint256 id) {
-        return _newSensor(outboundToken, inboundToken, price);
+    ) public payable returns (uint256 offerId) {
+        offerId = _newSensor(
+            uniswapPools,
+            outboundToken,
+            inboundToken,
+            price,
+            30_000,
+            0
+        );
     }
 
-    function removeSensor(uint256 idx) external onlyAdmin {
-        _removeSensor(idx);
+    function removeSensor(
+        address outboundToken,
+        address inboundToken,
+        uint256 id
+    ) public returns (uint256 provision) {
+        provision = _removeSensor(outboundToken, inboundToken, id);
     }
 
     function __posthookSuccess__(
         MgvLib.SingleOrder calldata order,
         bytes32 makerData
     ) internal override returns (bytes32) {
-        super.__callbackOnOfferTaken__(order, makerData);
+        super.__callbackOnOfferTaken__(order);
         return super.__posthookSuccess__(order, makerData);
     }
 
     function __callbackOnStopLoss__(
-        SensorData calldata _sensor
+        MgvLib.SingleOrder calldata order
     ) internal virtual override {
         // Do something with the sensor data
-        emit TestEvent(_sensor.price);
+        emit TestEvent(order.offerId);
         // Call the default parent function (for logging)
-        super.__callbackOnStopLoss__(_sensor);
+        super.__callbackOnStopLoss__(order);
     }
 }

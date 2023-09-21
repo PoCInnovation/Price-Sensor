@@ -97,7 +97,7 @@ contract PostOffer is Base {
 
         uint256 wants = 10000000000;
         uint256 gives = 1000000000;
-        uint256 gasreq = 1000000;
+        uint256 gasreq = 1_000_000;
 
         uint256 offerId = OfferMakerTutorial(payable(OFFER_MAKER)).newOffer{value: 0.01 ether}(
             IERC20(USDT), IERC20(WMATIC), wants, gives, 0, gasreq
