@@ -41,8 +41,8 @@ If you're interested in how the project is organized at a higher level, please c
 ## Our PoC team ❤️
 
 Developers
-| [<img src="https://github.com/LeTamanoir.png" width=85><br><sub>Martin Saldinger</sub>](https://github.com/LeTamanoir) | [<img src="https://github.com/EdenComp.png" width=85><br><sub>Florian Lauch</sub>](https://github.com/EdenComp) | [<img src="https://github.com/Nfire2103.png" width=85><br><sub>Nathan Flattin</sub>](https://github.com/Nfire2103) |
-| :--------------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
+| [<img src="https://github.com/LeTamanoir.png" width=85><br><sub>Martin Saldinger</sub>](https://github.com/LeTamanoir) | [<img src="https://github.com/Nfire2103.png" width=85><br><sub>Nathan Flattin</sub>](https://github.com/Nfire2103) |
+| :--------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
 
 Manager
 | [<img src="https://github.com/Doozers.png" width=85><br><sub>Ismaël Fall</sub>](https://github.com/Doozers) |

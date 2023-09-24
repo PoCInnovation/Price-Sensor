@@ -1,0 +1,30 @@
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+name: Test runner
+
+jobs:
+  check:
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install packages
+        run: npm install
+
+      - name: Run tests
+        run: forge test -vvvvv
+
+      - name: Run snapshot
+        run: forge snapshot

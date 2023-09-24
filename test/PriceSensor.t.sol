@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.10;
 
-import {Test2} from "mgv_lib/Test2.sol";
-import {Test, console} from "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
+import {Mangrove} from "mgv_src/Mangrove.sol";
 import {IMangrove} from "mgv_src/IMangrove.sol";
 import {MgvStructs} from "mgv_src/MgvLib.sol";
 import {IERC20} from "mgv_src/IERC20.sol";
-import {PriceSensor} from "../src/abstract/PriceSensor.sol";
-import {ExampleImplementation} from "../src/example/ExampleImplementation.sol";
-
-import {AbstractMangrove} from "mgv_src/AbstractMangrove.sol";
-import {Mangrove} from "mgv_src/Mangrove.sol";
 import {TransferLib} from "mgv_src/strategies/utils/TransferLib.sol";
-import {TestToken} from "mgv_test/lib/tokens/TestToken.sol";
+import {AbstractMangrove} from "mgv_src/AbstractMangrove.sol";
 import {AbstractRouter} from "mgv_src/strategies/routers/AbstractRouter.sol";
+import {IOfferLogic} from "mgv_src/strategies/interfaces/IOfferLogic.sol";
 
-contract MangroveTestHelper {
+import {TestToken} from "mgv_test/lib/tokens/TestToken.sol";
+
+import {Test2} from "mgv_lib/Test2.sol";
+
+import {IPriceSensor} from "../src/IPriceSensor.sol";
+import {TestImplementation} from "./utils/TestImplementation.sol";
+
+contract MyTest is Test2 {
     struct TokenOptions {
         string name;
         string symbol;
@@ -33,6 +36,55 @@ contract MangroveTestHelper {
         uint gasmax;
         uint density;
     }
+
+    /* counts the offers of a given pair */
+    function countOffers(
+        AbstractMangrove mgv,
+        address $out,
+        address $in
+    ) public view returns (uint256 count) {
+        uint offerId = mgv.best($out, $in);
+        while (offerId != 0) {
+            count++;
+            (MgvStructs.OfferUnpacked memory ofr, ) = mgv.offerInfo(
+                $out,
+                $in,
+                offerId
+            );
+            offerId = ofr.next;
+        }
+    }
+
+    /* Log OB with console */
+    function printOrderBook(
+        AbstractMangrove mgv,
+        address $out,
+        address $in
+    ) internal view {
+        uint offerId = mgv.best($out, $in);
+        TestToken req_tk = TestToken($in);
+        TestToken ofr_tk = TestToken($out);
+
+        // prettier-ignore
+        console.log(string.concat(unicode"┌────┬──Best offer: ", vm.toString(offerId), unicode"──────"));
+        while (offerId != 0) {
+            (
+                MgvStructs.OfferUnpacked memory ofr,
+                MgvStructs.OfferDetailUnpacked memory detail
+            ) = mgv.offerInfo($out, $in, offerId);
+            console.log(
+                // prettier-ignore
+                string.concat(
+                    unicode"│ ", string.concat(offerId < 10 ? " " : "", vm.toString(offerId)), // breaks on id>99
+                    unicode" ┆ ", string.concat(toFixed(ofr.wants, req_tk.decimals()), " ", req_tk.symbol()),
+                    "  /  ", string.concat(toFixed(ofr.gives, ofr_tk.decimals()), " ", ofr_tk.symbol()),
+                    " ", vm.toString(detail.maker)
+                )
+            );
+            offerId = ofr.next;
+        }
+        console.log(unicode"└────┴─────────────────────");
+    }
 }
 
 contract TestTokenHelper is TestToken {
@@ -48,8 +100,8 @@ contract TestTokenHelper is TestToken {
     }
 }
 
-contract TestPriceSensor is Test2, MangroveTestHelper {
-    ExampleImplementation internal priceSensor;
+contract TestPriceSensor is MyTest {
+    TestImplementation internal priceSensor;
     AbstractMangrove internal mgv;
     AbstractRouter internal router;
 
@@ -64,7 +116,7 @@ contract TestPriceSensor is Test2, MangroveTestHelper {
             quote: TokenOptions({
                 name: "Quote Token",
                 symbol: "QUOTE",
-                decimals: 18
+                decimals: 10
             }),
             defaultFee: 0,
             gasprice: 40,
@@ -76,7 +128,7 @@ contract TestPriceSensor is Test2, MangroveTestHelper {
     TestTokenHelper internal base;
     TestTokenHelper internal quote;
 
-    function setUp() public virtual {
+    function setUp() public {
         /**
          * @notice Labels map:
          *
@@ -137,7 +189,13 @@ contract TestPriceSensor is Test2, MangroveTestHelper {
         /**
          * Setup price sensor
          */
-        priceSensor = new ExampleImplementation(address(mgv), address(this));
+        priceSensor = new TestImplementation(
+            address(mgv),
+            address(this),
+            address(base),
+            address(quote),
+            50_000
+        );
         router = priceSensor.router();
 
         /**
@@ -176,168 +234,67 @@ contract TestPriceSensor is Test2, MangroveTestHelper {
         base.approve(address(mgv), mintAmount);
     }
 
-    /**
-     *  UTILS
-     */
-
-    /* Log OB with console */
-    function printOrderBook(address $out, address $in) internal view {
-        uint offerId = mgv.best($out, $in);
-        TestToken req_tk = TestToken($in);
-        TestToken ofr_tk = TestToken($out);
-
-        console.log(
-            string.concat(
-                unicode"┌────┬──Best offer: ",
-                vm.toString(offerId),
-                unicode"──────"
-            )
-        );
-        while (offerId != 0) {
-            (
-                MgvStructs.OfferUnpacked memory ofr,
-                MgvStructs.OfferDetailUnpacked memory detail
-            ) = mgv.offerInfo($out, $in, offerId);
-            console.log(
-                string.concat(
-                    unicode"│ ",
-                    string.concat(offerId < 9 ? " " : "", vm.toString(offerId)), // breaks on id>99
-                    unicode" ┆ ",
-                    string.concat(
-                        toFixed(ofr.wants, req_tk.decimals()),
-                        " ",
-                        req_tk.symbol()
-                    ),
-                    "  /  ",
-                    string.concat(
-                        toFixed(ofr.gives, ofr_tk.decimals()),
-                        " ",
-                        ofr_tk.symbol()
-                    ),
-                    " ",
-                    vm.toString(detail.maker)
-                )
+    function setUpOrderBook() external {
+        for (uint i = 0; i < 20; ) {
+            priceSensor.newSensor{value: 1 ether}(
+                0.005 ether + i * 0.0001 ether,
+                0.004 ether + i * 0.0001 ether,
+                0,
+                i
             );
-            offerId = ofr.next;
+
+            unchecked {
+                ++i;
+            }
         }
-        console.log(unicode"└────┴─────────────────────");
     }
 
-    function test_newSensor() public {
-        address[] memory uniswapPools = new address[](1);
-        uniswapPools[0] = address(0);
-
-        uint256 offerId = priceSensor.newSensor{value: 0.01 ether}(
-            uniswapPools,
-            address(base),
-            address(quote),
-            0.68 * 1e18
-        );
-
-        assertEq(offerId, 1);
-    }
-
-    function test_removePriceSensor() public {
-        address[] memory uniswapPools = new address[](1);
-        uniswapPools[0] = address(0);
-
-        uint256 offerId = priceSensor.newSensor{value: 0.01 ether}(
-            uniswapPools,
-            address(base),
-            address(quote),
-            0.68 * 1e18
-        );
-
-        uint256 provision = priceSensor.removeSensor(
-            address(base),
-            address(quote),
-            offerId
-        );
-
-        assert(provision > 0);
-    }
-
-    // fake uniswap pool
-    // and populate its slot0
-
-    function test_snipeSensor() public {
+    function test_triggerStopLoss() public {
         vm.pauseGasMetering();
-
-        address[] memory uniswapPools = new address[](0);
-        // uniswapPools[0] = ;
-
-        // for 0.5 token in we get 1 token out
-        uint256 price = 0.5 ether;
-        uint256 offerId = priceSensor.newSensor{value: 0.01 ether}(
-            uniswapPools,
-            address(base),
-            address(quote),
-            price
-        );
-
-        console.log("offerId: %s", offerId);
-
-        printOrderBook(address(base), address(quote));
+        this.setUpOrderBook();
+        printOrderBook(mgv, address(base), address(quote));
 
         uint256[4][] memory targets = new uint[4][](1);
-        /* offerId          */ targets[0][0] = offerId;
-        /* takerWants       */ targets[0][1] = 0.000000000000002 ether;
-        /* takerGives       */ targets[0][2] = 0.000000000000002 ether;
-        /* gasreq_permitted */ targets[0][3] = 30_000;
-
-        (
-            uint successes,
-            uint takerGot,
-            uint takerGave,
-            uint bounty,
-            uint fee
-        ) = mgv.snipes(address(base), address(quote), targets, true);
-
-        assertEq(successes, 1);
-
-        console.log("successes: %s", successes);
-        console.log("takerGot: %s", takerGot);
-        console.log("takerGave: %s", takerGave);
-        console.log("bounty: %s", bounty);
-        console.log("fee: %s", fee);
-
-        printOrderBook(address(base), address(quote));
-    }
-
-    function test_autoRemoveSensorWithoutUniswapPools() public {
-        vm.pauseGasMetering();
-
-        address[] memory uniswapPools = new address[](0);
-
-        // for 0.5 token in we get 1 token out
-        uint256 price = 0.5 ether;
-        uint256 offerId = priceSensor.newSensor{value: 0.01 ether}(
-            uniswapPools,
-            address(base),
-            address(quote),
-            price
-        );
-
-        uint256[4][] memory targets = new uint[4][](1);
-        /* offerId          */ targets[0][0] = offerId;
-        /* takerWants       */ targets[0][1] = 0.000000000000002 ether;
-        /* takerGives       */ targets[0][2] = 0.000000000000002 ether;
-        /* gasreq_permitted */ targets[0][3] = 30_000;
-
-        (uint successes, , , , ) = mgv.snipes(
+        /* offerId          */ targets[0][0] = 20;
+        /* takerWants       */ targets[0][1] = 0.0059 ether;
+        /* takerGives       */ targets[0][2] = 0.0069 ether;
+        /* gasreq_permitted */ targets[0][3] = 50_000;
+        (uint successes, uint takerGot, uint takerGave, , ) = mgv.snipes(
             address(base),
             address(quote),
             targets,
             true
         );
-        assertEq(successes, 1);
 
-        (MgvStructs.OfferUnpacked memory ofr, ) = mgv.offerInfo(
+        assertEq(successes, 1);
+        assertEq(countOffers(mgv, address(base), address(quote)), 19);
+        assertEq(takerGot, 0.0059 ether);
+        assertEq(takerGave, 0.0069 ether);
+
+        printOrderBook(mgv, address(base), address(quote));
+    }
+
+    function test_takeSimpleOffer() public {
+        vm.pauseGasMetering();
+        this.setUpOrderBook();
+        printOrderBook(mgv, address(base), address(quote));
+
+        uint256[4][] memory targets = new uint[4][](1);
+        /* offerId          */ targets[0][0] = 18;
+        /* takerWants       */ targets[0][1] = 0.0057 ether;
+        /* takerGives       */ targets[0][2] = 0.0067 ether;
+        /* gasreq_permitted */ targets[0][3] = 50_000;
+        (uint successes, uint takerGot, uint takerGave, , ) = mgv.snipes(
             address(base),
             address(quote),
-            0
+            targets,
+            true
         );
 
-        assertEq(ofr.gives, 0);
+        assertEq(successes, 1);
+        assertEq(countOffers(mgv, address(base), address(quote)), 20);
+        assertEq(takerGot, 0.0057 ether);
+        assertEq(takerGave, 0.0067 ether);
+        printOrderBook(mgv, address(base), address(quote));
     }
 }
