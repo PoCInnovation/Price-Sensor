@@ -10,8 +10,6 @@ import {IERC20} from "mgv_src/IERC20.sol";
 import {AbstractPriceSensor} from "../AbstractPriceSensor.sol";
 
 contract ExampleImplementation is AbstractPriceSensor, Direct {
-    event TestEvent(uint256 indexed offerId);
-
     /// The outbound token of the sensor
     IERC20 private immutable _outbound_tkn;
     /// The inbound token of the sensor
@@ -69,8 +67,9 @@ contract ExampleImplementation is AbstractPriceSensor, Direct {
         MgvLib.SingleOrder calldata order
     ) internal virtual override {
         // Do something with the sensor data
-        emit TestEvent(order.offerId);
-        // Call the default parent function (for logging)
+        // e.g. sell all the inbound token for the outbound token
+
+        // Call the default parent function if you need logging (e.g. for an oracle etc...)
         super.__callbackOnStopLoss__(order);
     }
 }
