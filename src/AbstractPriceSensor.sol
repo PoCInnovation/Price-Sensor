@@ -37,15 +37,15 @@ abstract contract AbstractPriceSensor is IPriceSensor {
             newBestOfferId
         );
 
-        //                newBestOffer.gives                 order.offer.gives()
-        // newBestPrice = ------------------  >=  oldPrice = -------------------
-        //                newBestOffer.wants                 order.offer.wants()
+        //                newBestOffer.wants                  order.offer.wants()
+        // newBestPrice = ------------------  >=  oldPrice =  -------------------
+        //                newBestOffer.gives                  order.offer.gives()
         //
-        // if newBestPrice is greater than oldPrice, then the stop loss was reached
+        // if newBestPrice is lower than oldPrice, then the stop loss was reached
 
         if (
-            newBestOffer.gives * order.offer.wants() <
-            order.offer.gives() * newBestOffer.wants
+            order.offer.gives() * newBestOffer.wants >=
+            newBestOffer.gives * order.offer.wants()
         ) {
             __callbackOnStopLoss__(order);
         }
