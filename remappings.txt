@@ -4,5 +4,3 @@ mgv_test/=node_modules/@mangrovedao/mangrove-core/test/
 mgv_script/=node_modules/@mangrovedao/mangrove-core/script/
 
 forge-std/=node_modules/@mangrovedao/mangrove-core/lib/forge-std/src/
-
-uniswap/=node_modules/@uniswap/v3-core/contracts/
