@@ -23,7 +23,7 @@ For testing: Create a `.env` file at the root of the project and fill it with th
 
 ### Usage
 
-Implement the `abstract PriceSensor` class in your own project.
+Use the `AbstractPriceSensor` contract in your own project.
 Refer to `./src/example/ExampleImplementation.sol` for an example.
 
 ```solidity
